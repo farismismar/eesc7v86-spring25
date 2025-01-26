@@ -9,13 +9,12 @@ Created on Sun Jan 26 12:31:52 2025
 import numpy as np
 
 seed = 42
-size = 2
 
 np_random = np.random.RandomState(seed=seed)
-
-a = np_random.randint(0, 5, size=2)
+a = np_random.randint(0, 5, size=2)  # a two-dimensional vector
 
 def rotation_matrix(theta):
+    # Rotates a vector in 2D space.
     return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
 
 max_distance = -np.inf
