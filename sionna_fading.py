@@ -9,7 +9,7 @@ Created on Sun Mar  9 22:43:25 2025
 import tensorflow as tf
 import sionna  # uses version 0.19.2 
 from sionna.utils import BinarySource, compute_ser
-from sionna.channel import AWGN
+from sionna.channel import FlatFadingChannel
 from sionna.mapping import SymbolDemapper, Demapper, Mapper, Constellation
 
 # Define channel parameters
