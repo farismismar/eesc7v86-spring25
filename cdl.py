@@ -19,7 +19,7 @@ sigma_dB = 4
 frequency = 1800e6
 
 
-def _generate_cdl_a_channel(N_sc, N_r, N_t, sigma_dB, carrier_frequency, G=None, delay_spread=5e-6, num_clusters=23, cASD=5.0, cASA=11.0, cZSD=3.0, cZSA=3.0, xpr=10.0):
+def _generate_cdl_a_channel(N_sc, N_r, N_t, sigma_dB, carrier_frequency, G=None):
     global np_random
 
     if G is None:
