@@ -7,12 +7,14 @@ Created on Sat Mar 15 20:54:45 2025
 """
 
 import numpy as np 
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
 
 np_random = np.random.RandomState(seed=42)
 
 N_sc = 64
-N_r = 2
-N_t = 2 
+N_r = 4
+N_t = 4 
 sigma_dB = 4
 frequency = 1800e6
 
@@ -61,6 +63,10 @@ def _generate_cdl_a_channel(N_sc, N_r, N_t, sigma_dB, carrier_frequency, delay_s
             # Apply phase shift across subcarriers
             H += H_tap * phase_shift[sc]
         
+    # Normalize channel gains
+    for sc in range(N_sc):
+        H[sc, :, :] /= np.linalg.norm(H[sc, :, :], ord='fro')
+    
     return H
 
 
@@ -101,7 +107,11 @@ def _generate_cdl_c_channel_v2(N_sc, N_r, N_t, sigma_dB, carrier_frequency):
     
             # Apply phase shift across subcarriers
             H += H_tap * phase_shift[sc]
-            
+
+    # Normalize channel gains
+    for sc in range(N_sc):
+        H[sc, :, :] /= np.linalg.norm(H[sc, :, :], ord='fro')
+
     return H
 
 
@@ -144,11 +154,49 @@ def _generate_cdl_e_channel_v2(N_sc, N_r, N_t, sigma_dB, carrier_frequency, dela
             # Apply phase shift across subcarriers
             H += H_tap * phase_shift[sc]
         
+    # Normalize channel gains
+    for sc in range(N_sc):
+        H[sc, :, :] /= np.linalg.norm(H[sc, :, :], ord='fro')
+    
     return H
 
+
+def plot_channel(channel, vmin=None, vmax=None, filename=None):
+    global output_path
+
+    N_sc, N_r, N_t = channel.shape
+
+    # Only plot first receive antenna
+    H = channel[:,0,:]
+
+    dB_gain = 10 * np.log10(np.abs(H) ** 2 + 1e-5)
+
+    # Create a normalization object
+    norm = mcolors.Normalize(vmin=dB_gain.min(), vmax=dB_gain.max())
+
+    # plt.rcParams['font.size'] = 36
+    # plt.rcParams['text.usetex'] = True
+    fig, ax = plt.subplots(figsize=(12, 6))
+
+    plt.imshow(dB_gain, aspect='auto', norm=norm)
+
+    plt.xlabel('TX Antennas')
+    plt.ylabel('Subcarriers')
+
+    plt.xticks(range(N_t))
+    plt.tight_layout()
+
+    if filename is not None:
+        plt.savefig(f'{output_path}/channel_{filename}.pdf', format='pdf', dpi=fig.dpi)
+        #tikzplotlib.save(f'{output_path}/channel_{filename}.tikz')
+    plt.show()
+    plt.close(fig)
 
 
 H_a = _generate_cdl_a_channel(N_sc, N_r, N_t, sigma_dB, frequency)
 H_c = _generate_cdl_c_channel_v2(N_sc, N_r, N_t, sigma_dB, frequency)
 H_e = _generate_cdl_e_channel_v2(N_sc, N_r, N_t, sigma_dB, frequency)
 
+plot_channel(H_a)
+plot_channel(H_c)
+plot_channel(H_e)
