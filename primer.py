@@ -208,7 +208,7 @@ def _signal_power(signal):
 
 def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
     global np_random
-    global crc_generator
+    global crc_generator, N_s
 
     k = int(np.log2(alphabet.shape[0]))
 
@@ -216,8 +216,11 @@ def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
 
     crc_length = len(bin(crc_generator)[2:])  # in bits.
     crc_pad_length = int(np.ceil(crc_length / k)) * k  # padding included.
-
-    padding_length = crc_pad_length - crc_length
+    
+    # The padding length in symbols is
+    codeword_length = payload_length  # based on the MCS.
+    padding_length_syms = N_sc * N_s - int(np.ceil((codeword_length + crc_length) / k))
+    padding_length_bits = k * padding_length_syms
 
     bits = create_bit_payload(payload_length)
 
@@ -225,7 +228,9 @@ def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
     crc_transmitter = compute_crc(bits, crc_generator)
 
     # Construct the payload frame.
-    payload = bits + '0' * padding_length + crc_transmitter
+    payload = bits + '0' * padding_length_bits + crc_transmitter
+    ###
+
     assert(len(payload) == payload_length)
 
     x_b_i, x_b_q, x_information, x_symbols = bits_to_baseband(payload, alphabet)
@@ -2170,7 +2175,7 @@ def run_simulation():
     global transmit_SNR_dB, P_TX, N_t
     global N_sc, f_c, Df, noise_figure
     global channel_type, shadowing_std_dev
-    global estimation, equalization, symbol_detection
+    global estimation, equalization, symbol_detection, N_s
     
     start_time = time.time()
 
