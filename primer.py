@@ -58,7 +58,7 @@ P_TX = 1                                 # Signal transmit power per antenna (ba
 
 max_transmissions = 500
 precoder = 'SVD_Waterfilling'            # Also: identity, SVD, SVD_Waterfilling, dft_beamforming
-channel_type = 'ricean'                  # Channel type: awgn, rayleigh, ricean, CDL-C, CDL-E
+channel_type = 'ricean'                  # Channel type: awgn, rayleigh, ricean, CDL-A, CDL-C, CDL-E
 quantization_b = np.inf                  # Quantization resolution
 
 Df = 15e3                                # OFDM subcarrier bandwidth [Hz].
