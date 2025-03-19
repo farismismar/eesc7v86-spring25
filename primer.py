@@ -665,7 +665,6 @@ def _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency):
     return H
 
 
-
 def _generate_cdl_c_channel(N_sc, N_r, N_t, carrier_frequency):
     global np_random, Df
 
@@ -2235,9 +2234,9 @@ def run_simulation():
             P_interference = np.mean(_signal_power(interference)) # * Df
             Y += interference
     
-            # The coordinates of a user (site diameter is 800 m)
-            x_coord = np_random.uniform(-400, 400)
-            y_coord = np_random.uniform(-400, 400)
+            # The coordinates of a user (site diameter is 500 m)
+            x_coord = np_random.uniform(-250, 250)
+            y_coord = np_random.uniform(-250, 250)
             
             d = np.sqrt(x_coord ** 2 + y_coord ** 2)
             
@@ -2279,6 +2278,9 @@ def run_simulation():
             H_est = H if MIMO_estimation == 'perfect' else estimate_channel(P, T, snr_dB, algorithm=MIMO_estimation)
             estimation_error = _mse(H, H_est)
     
+            # # Estimate from signal
+            # H_est = H if MIMO_estimation == 'perfect' else estimate_channel(X, Y, snr_dB, algorithm=MIMO_estimation)   
+            
             # Compress channel before sending to the receiver
             # and only plot the first transmission (since all transmissions are assumed within channel coherence time).
             _, H_est, compression_loss = compress_channel(H_est, channel_compression_ratio, quantization_b, plotting=(n_transmission == 0))
