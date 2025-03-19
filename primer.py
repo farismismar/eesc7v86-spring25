@@ -2321,9 +2321,9 @@ def run_simulation():
             v = _matrix_vector_multiplication(W, noise)
             q = _matrix_vector_multiplication(W, interference)
 
-            P_w_S_x_dBm = _dB(np.linalg.norm(W[0,:,:]@Sigma[0, :], ord='fro') ** 2) + P_X_dBm  # Ideally I should do across all subcarriers.
+            P_w_S_x_dBm = _dB(np.linalg.norm(W[0,:,:], ord='fro') ** 2) + _dB(np.linalg.norm(Sigma[0, :], ord='fro') ** 2) + P_X_dBm  # Ideally I should do across all subcarriers.
             P_v_dBm = _dB(np.linalg.norm(W[0, :, :]@Gcomb[0, :, :], ord='fro') ** 2) + _dB((P_noise + P_interference) * 1e3)
-
+            
             snr_rx_dB = P_w_S_x_dBm - P_v_dBm - noise_figure
             EbN0_rx_dB = snr_rx_dB - _dB(k_constellation * code_rate)
 
