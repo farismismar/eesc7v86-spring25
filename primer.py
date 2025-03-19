@@ -75,7 +75,7 @@ MIMO_estimation = 'perfect'              # Also: perfect, LS, LMMSE (keep at per
 MIMO_equalization = 'MMSE'               # Also: MMSE, ZF
 symbol_detection = 'ML'                  # Also: ML, kmeans, DNN, ensemble
 
-crc_generator = 0b1000_0101              # CRC generator polynomial
+crc_generator = 0b1000_0101              # CRC generator polynomial (n-bit)
 channel_compression_ratio = 0            # Channel compression
 
 K_factor = 4                             # For Ricean
@@ -569,10 +569,10 @@ def _lloyd_max_quantization(x, b, max_iteration):
 def create_channel(N_sc, N_r, N_t, channel='rayleigh'):
     global np_random
     global f_c
-   
+
     if channel == 'awgn':
         return _create_awgn_channel(N_sc, N_r, N_t)
-    
+
     if channel == 'ricean':
         return _create_ricean_channel(N_sc, N_r, N_t, K_factor=4)
 
@@ -589,7 +589,7 @@ def create_channel(N_sc, N_r, N_t, channel='rayleigh'):
 def _create_awgn_channel(N_sc, N_r, N_t):
     H = np.eye(N_r, N_t)
     H = np.repeat(H[np.newaxis, :, :], N_sc, axis=0)  # Repeat for all subcarriers
-    
+
     return H
 
 
@@ -610,18 +610,18 @@ def _create_ricean_channel(N_sc, N_r, N_t, K_factor):
 
     H = np_random.normal(loc=mu, scale=sigma, size=(N_r, N_t)) + \
         1j * np_random.normal(loc=mu, scale=sigma, size=(N_r, N_t))
-    
+
     # Normalize channel to unity gain
     H /= np.linalg.norm(H, ord='fro')
-    
-    H = np.repeat(H[np.newaxis, :, :], N_sc, axis=0)  # Repeat for all subcarriers        
-    
+
+    H = np.repeat(H[np.newaxis, :, :], N_sc, axis=0)  # Repeat for all subcarriers
+
     return H
 
 
 def _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency):
     global np_random, Df
-    
+
     # Channel parameters from CDL-A model (delays, powers, AoD, AoA)
     delay_taps = np.array([0.0, 0.3819, 0.4025, 0.5868, 0.4610, 0.5375, 0.6708, 0.5750, 0.7618, 1.5375, 1.8978, 2.2242, 2.1718, 2.4942, 2.5119, 3.0582, 4.0810, 4.4579, 4.5695, 4.7966, 5.0066, 5.3043, 9.6586])
     powers_dB = np.array([-13.4, 0.0, -2.2, -4.0, -6.0, -8.2, -9.9, -10.5, -7.5, -15.9, -6.6, -16.7, -12.4, -15.2, -10.8, -11.3, -12.7, -16.2, -18.3, -18.9, -16.6, -19.9, -29.7])
@@ -629,13 +629,13 @@ def _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency):
     aoa = np.array([51.3, -152.7, -152.7, -152.7, 76.6, 76.6, 76.6, -1.2, 10.5, -45.6, 88.1, 34.5, 45.0, -28.4, -90.2, 12.8, -9.7, 37.4, 28.2, 15.7, 3.0, 5.0, 16.0])
 
     num_taps = len(powers_dB)
-    
+
     # Initialize MIMO OFDM channel matrix H with dimensions (N_sc, N_r, N_t)
     H = np.zeros((N_sc, N_r, N_t), dtype=np.complex128)
 
     # Frequency range for the subcarriers
     subcarrier_frequencies = carrier_frequency + (np.arange(N_sc) - N_sc // 2) * Df   # subcarrier indices
-    
+
     # Generate channel response for each tap and apply delay phase shifts
     for tap in range(num_taps):
         # Delay in seconds
@@ -643,10 +643,10 @@ def _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency):
         power = 10 ** (powers_dB[tap] / 10.)  # Linear scale of power
         aod_rad = np.radians(aod[tap])
         aoa_rad = np.radians(aoa[tap])
-    
+
         # Apply the phase shift for each subcarrier based on the delay
         phase_shift = np.exp(-2j * np.pi * subcarrier_frequencies * delay)
-        
+
         # For each subcarrier and symbol, calculate the MIMO channel response
         for sc in range(N_sc):
             # Generate the channel matrix for this subcarrier and symbol
@@ -654,14 +654,14 @@ def _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency):
             # Complex Gaussian fading for each tap, scaled by tap power
             H_tap = np.sqrt(power) * np.outer(np.exp(1j * aod_rad), np.exp(1j * aoa_rad)) * \
                                      (np_random.randn(N_sc, N_r, N_t) + 1j * np_random.randn(N_sc, N_r, N_t)) / np.sqrt(2)
-    
+
             # Apply phase shift across subcarriers
             H += H_tap * phase_shift[sc]
-        
+
     # Normalize channel gains
     for sc in range(N_sc):
         H[sc, :, :] /= np.linalg.norm(H[sc, :, :], ord='fro')
-    
+
     return H
 
 
@@ -745,7 +745,7 @@ def _generate_cdl_e_channel(N_sc, N_r, N_t, carrier_frequency):
 
 def compute_large_scale_fading(dist, f_c, D_t_dB=18, D_r_dB=-1, pl_exp=2):
     global N_sc, Df
-    
+
     subcarrier_frequencies = f_c + (np.arange(N_sc) - N_sc // 2) * Df   # subcarrier indices
 
     wavelength = speed_of_light / subcarrier_frequencies
@@ -759,12 +759,12 @@ def compute_large_scale_fading(dist, f_c, D_t_dB=18, D_r_dB=-1, pl_exp=2):
 def compute_shadow_fading(N_sc, large_scale_fading_dB, shadow_fading_std):
     global np_random
     global N_r, N_t
-    
+
     chi_sigma = np_random.normal(loc=0, scale=shadow_fading_std, size=N_sc)
     G_dB = np.zeros_like(large_scale_fading_dB)
-    
+
     G_dB = large_scale_fading_dB - chi_sigma
-    
+
     return G_dB, chi_sigma
 
 
@@ -920,21 +920,21 @@ def detect_symbols(z, alphabet, algorithm):
 
     if algorithm == 'ML':
         return _detect_symbols_ML(z, alphabet)
-    
+
     # Supervised learning detections
     y = alphabet['m'].values
     X = np.c_[np.real(alphabet['x']), np.imag(alphabet['x'])]
 
     X_infer = z.flatten()
     X_infer = np.c_[np.real(X_infer), np.imag(X_infer)]
-    
-    if algorithm == 'ensemble':    
+
+    if algorithm == 'ensemble':
         _, [training_accuracy_score, test_accuracy_score], y_infer =  \
             _detect_symbols_ensemble(X, y, X_infer)
-                
+
         # print(f'Ensemble training accuracy is {training_accuracy_score:.2f}.')
         # print(f'Ensemble test accuracy is {test_accuracy_score:.2f}.')
-    
+
     if algorithm == 'DNN':
         _, [train_acc_score, test_acc_score], y_infer = \
             _detect_symbols_DNN(X, y, X_infer)
@@ -949,7 +949,7 @@ def detect_symbols(z, alphabet, algorithm):
     information = df['m'].values.reshape(z.shape)
     bits_i = df['I'].values.reshape(z.shape)
     bits_q = df['Q'].values.reshape(z.shape)
-    
+
     return information, symbols, [bits_i, bits_q]
 
 
@@ -985,7 +985,7 @@ def _detect_symbols_ensemble(X_train, y_train, X_test):
     y_train = y_train.ravel()
 
     # The classifier hyperparameters need to be tuned.
-    base_estimator = RandomForestClassifier(n_estimators=100, n_jobs=-1, 
+    base_estimator = RandomForestClassifier(n_estimators=100, n_jobs=-1,
                                             criterion='entropy',
                                             class_weight='balanced',
                                             random_state=np_random)
@@ -1007,7 +1007,7 @@ def _detect_symbols_ensemble(X_train, y_train, X_test):
 
     y_test_pred = clf.predict(X_test)
     training_accuracy_score = clf.score(X_train, y_train)
-    
+
     return clf, [training_accuracy_score, np.nan], y_test_pred
 
 
@@ -1041,20 +1041,20 @@ def _detect_symbols_DNN(X_train, y_train, X_test, depth=6, width=8,
     # This improves the learning significantly.
     X_train_augmented = np.empty((0, nX))
     epsilons = [1e-2, 1e-3]
-    
+
     for perturb in epsilons:
         X_train_i = X_train + np_random.normal(0, scale=perturb, size=X_train.shape)
         X_train_augmented = np.r_[X_train_augmented, X_train_i]
-    
+
     X_train = np.r_[X_train, X_train_augmented]
     y_train = np.tile(y_train, len(epsilons) + 1)
-    
+
     Y_train = keras.utils.to_categorical(y_train)
-    
-    # start_time = time.time()    
+
+    # start_time = time.time()
     model, [training_accuracy_score, test_accuracy_score], y_test_pred = _train_dnn(X_train, Y_train, X_test,
                                             depth=depth, width=width, epoch_count=epoch_count,
-                                            batch_size=batch_size, 
+                                            batch_size=batch_size,
                                             learning_rate=1e-2)
 
     # end_time = time.time()
@@ -1067,7 +1067,7 @@ def _train_dnn(X_train, Y_train, X_test, depth, width, epoch_count,
                batch_size, learning_rate):
     global prefer_gpu
     global np_random
-    
+
     use_cuda = len(tf.config.list_physical_devices('GPU')) > 0 and prefer_gpu
     device = "/gpu:0" if use_cuda else "/cpu:0"
 
@@ -1088,21 +1088,21 @@ def _train_dnn(X_train, Y_train, X_test, depth, width, epoch_count,
 
         with tf.device(device):
             history = dnn_classifier.fit(X_train, Y_train, epochs=epoch_count,
-                               shuffle=False, 
+                               shuffle=False,
                                batch_size=batch_size)
             dnn_classifier.save('dnn_detection.keras')
             Y_pred = dnn_classifier.predict(X_train)
             _, training_accuracy_score, _ = dnn_classifier.evaluate(X_train, Y_train)
             y_train_pred = np.argmax(Y_pred, axis=1)
             _plot_keras_learning(history, filename='dnn_detection')
-            
+
     # Perform inference.
     with tf.device(device):
         Y_test_pred = dnn_classifier.predict(X_test, verbose=0)
-        
+
     y_test_pred = np.argmax(Y_test_pred, axis=1)
-    
-    return dnn_classifier, [training_accuracy_score, np.nan], y_test_pred 
+
+    return dnn_classifier, [training_accuracy_score, np.nan], y_test_pred
 
 
 def __loss_fn_classifier(Y_true, Y_pred):
@@ -1156,7 +1156,7 @@ def _train_lstm(X_train, X_test, Y_train, Y_test, lookbacks, depth, width, epoch
                                 #validation_split=0.5,
                                 # verbose=False,
                                 shuffle=False)
-            
+
             model.reset_states()  # For reproducibility, but does not work.
             model.save('lstm_classifier.keras')
             Y_pred = model.predict(X_train)
@@ -1200,26 +1200,26 @@ def __create_cnn(learning_rate):
 
 
 def __create_dnn(input_dimension, output_dimension, depth, width, learning_rate):
-    global seed    
+    global seed
     tf.random.set_seed(seed)  # Reproducibility
-    
+
     model = keras.Sequential()
     model.add(keras.Input(shape=(input_dimension,)))
-    
+
     for hidden in range(depth):
         model.add(layers.Dense(width, activation='relu'))
-   
+
     model.add(layers.Dense(output_dimension, activation='softmax'))
-    
+
     model.compile(loss=__loss_fn_classifier, optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
                   metrics=['accuracy', 'categorical_crossentropy']) # Accuracy here is okay.  These metrics are what .evaluate() returns.
-    
+
     # Reporting the number of parameters
     print(model.summary())
-    
+
     num_params = model.count_params()
     print('Number of parameters: {}'.format(num_params))
-    
+
     return model
 
 
@@ -1386,7 +1386,7 @@ def _svd_precoder_combiner(H):
 
 def _waterfilling(S, power):
     n_modes = len(S)
-    
+
     # Ensure eigenmodes are non-zero
     if np.any(S < 1):
         raise ValueError("Channel has very weak eigenmodes which prevents waterfilling.  Please use a different channel or a different precoder.")
@@ -1433,7 +1433,7 @@ def _matrix_vector_multiplication(A, B):
 
 def plot_scatter(df, xlabel, ylabel, filename=None):
     global output_path
-    
+
     fig, ax = plt.subplots(figsize=(9, 6))
     plt.scatter(df[xlabel], df[ylabel], s=10, c='r', edgecolors='none', alpha=0.2)
 
@@ -1442,10 +1442,10 @@ def plot_scatter(df, xlabel, ylabel, filename=None):
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.tight_layout()
-    
+
     plt.show()
     plt.close(fig)
-    
+
 
 def plot_performance(df, xlabel, ylabel, semilogy=True, filename=None):
     global output_path
@@ -2165,222 +2165,222 @@ def equalize_rotation_channel_CNN(theta, SNR_dB, epochs=100, batch_size=64, trai
     return X_test, y_test, y_pred
 
 
-def run_simulation():    
+def run_simulation():
     start_time = time.time()
-    
+
     # This is the power of the signal (across all subcarriers for one OFDM symbol)
     P_BS = P_TX * N_t
-    
+
     # Number of streams.
     N_s = min(N_r, N_t) if precoder != 'identity' else N_t
-    
+
     if max_transmissions < 500:
         print('WARNING:  Low number of runs could cause statistically inaccurate results.')
-    
+
     alphabet = create_constellation(constellation=constellation, M=M_constellation)
     _plot_constellation(alphabet, annotate=True, filename='constellation')
-    
+
     k_constellation = int(np.log2(M_constellation))
     code_rate = 1  # hardcoded for now
-    
+
     X_information, X, [x_b_i, x_b_q], payload_size, crc_transmitter = generate_transmit_symbols(N_sc, N_s, alphabet=alphabet, P_TX=P_TX)
     bits_transmitter, codeword_transmitter = bits_from_IQ(x_b_i, x_b_q)
     P_X = np.mean(_signal_power(X)) # * Df
     P_X_dBm = _dB(P_X * 1e3)
-    
+
     P = generate_pilot_symbols(N_t, n_pilot, P_TX, kind='dft')
     H = create_channel(N_sc, N_r, N_t, channel=channel_type)
-    
+
     # Precoder and combiner
     F, Gcomb = compute_precoder_combiner(H, P_BS, algorithm=precoder)
-    
+
     # Precoding right-multiply H with F
     HF = H@F
-    
+
     # The throughput can be computed by dividing the payload size by TTI (= 1 symbol duration)
     print(f'Payload to be transmitted: {payload_size} bits over one OFDM symbol duration (including CRC).')
-    
+
     if precoder != 'dft_beamforming':
         print('Channel eigenmodes are: {}'.format(_find_channel_eigenmodes(H)))
-    
+
     plot_channel(H, filename=channel_type)
-    
+
     df = pd.DataFrame(columns=['n', 'snr_dB', 'Tx_EbN0_dB', 'Tx_Pwr_dBm', 'distance',
                                'channel_estimation_error', 'compression_loss',
                                'PL_dB', 'Rx_Pwr_dBm', 'sinr_receiver_before_eq_dB',
                                'sinr_receiver_after_eq_dB', 'Rx_EbN0_dB',
                                'BER', 'BLER'])
-    
+
     df_detailed = df.copy().rename({'BLER': 'total_block_errors'}, axis=1)
     df.drop(columns='n', inplace=True)
-    
+
     print(' | '.join(df.columns))
-    
+
     for item, snr_dB in enumerate(transmit_SNR_dB):
         block_error = 0
         BER = []
-    
+
         if item % 2 == 0:
             _print_divider()
-    
+
         EbN0_dB = snr_dB - _dB(k_constellation)
-    
+
         for n_transmission in range(max_transmissions):
             Y, noise = channel_effect(HF, X, snr_dB)
             T, _ = channel_effect(HF[:P.shape[0], :], P, snr_dB)
-    
+
             # Interference
             interference = generate_interference(Y, p_interference, interference_power_dBm)
             P_interference = np.mean(_signal_power(interference)) # * Df
             Y += interference
-    
+
             # The coordinates of a user (site diameter is 500 m)
             x_coord = np_random.uniform(-250, 250)
             y_coord = np_random.uniform(-250, 250)
-            
+
             d = np.sqrt(x_coord ** 2 + y_coord ** 2)
-            
+
             # Fading
             G = compute_large_scale_fading(dist=d, f_c=f_c, D_t_dB=18, D_r_dB=-1, pl_exp=2)
             G_dB = _dB(G)
             Gchi_dB, _ = compute_shadow_fading(N_sc, G_dB, shadowing_std_dev)  # Add shadowing \chi_\sigma
             Gchi = _linear(Gchi_dB)
-            
+
             # Note to self, introducing G_fading to the channel creates detection problems.
             # H *= np.sqrt(Gchi)
-            
+
             # Left-multiply y and noise with Gcomb
             Y = _matrix_vector_multiplication(Gcomb, Y)
             noise = _matrix_vector_multiplication(Gcomb, noise)
-    
+
             P_Y = np.mean(_signal_power(Y)) # * Df
             P_noise = np.mean(_signal_power(noise)) # * Df
-    
+
             # Quantization is optional.
             Y = quantize(Y, b=quantization_b)
             P_Y = np.mean(_signal_power(Y)) # * Df
-    
+
             # Factor in the fading to the channel gain.
             GH = np.zeros_like(H)
             for sc in range(N_sc):
                 GH[sc, :, :] = np.sqrt(Gchi[sc]) * H[sc, :, :]
-                
+
             # Channel gain
             channel_gain = np.linalg.norm(np.mean(GH, axis=0), ord='fro') ** 2
             PL_dB = -_dB(channel_gain)
-        
+
             # snr_transmitter_dB = _dB(P_X/P_noise) # This should be very close to snr_dB.
-            
+
             # Note to self: PL is not P_Y / P_X.  The noise power is not subtracted.
             # Thus: P_noise + P_X / P_H ~ P_Y (where P_H is the path gain)
             P_Hx_dBm = P_X_dBm - PL_dB
-    
+
             snr_rx_dB_pre_eq = P_Hx_dBm - _dB(P_noise + P_interference) - noise_figure
-            
+
             # Estimate from pilots
             H_est = H if MIMO_estimation == 'perfect' else estimate_channel(P, T, snr_dB, algorithm=MIMO_estimation)
             estimation_error = _mse(H, H_est)
-    
+
             # # Estimate from signal
-            # H_est = H if MIMO_estimation == 'perfect' else estimate_channel(X, Y, snr_dB, algorithm=MIMO_estimation)   
-            
+            # H_est = H if MIMO_estimation == 'perfect' else estimate_channel(X, Y, snr_dB, algorithm=MIMO_estimation)
+
             # Compress channel before sending to the receiver
             # and only plot the first transmission (since all transmissions are assumed within channel coherence time).
             _, H_est, compression_loss = compress_channel(H_est, channel_compression_ratio, quantization_b, plotting=(n_transmission == 0))
-    
+
             # Replace the channel H with Sigma as a result of the operations on
             # X and Y above.
             GH_est = Gcomb@H_est  # This is not Sigma
             Sigma = GH_est@F  # This is Sigma.  Is it diagonalized with elements equal the sqrt of eigenmodes when using SVD?  Yes.
-            
+
             # np.sqrt(_find_channel_eigenmodes(H)) == GH_estF[0].round(4)
-    
+
             if (channel_compression_ratio == 0) and ((precoder == 'SVD') or (precoder == 'SVD_Waterfilling')):
                 assert np.allclose(Sigma[0], np.diag(np.diagonal(Sigma[0])))
-    
+
             if precoder != 'dft_beamforming':
                 W = equalize_channel(Sigma, snr_dB, algorithm=MIMO_equalization)
             else:
                 W = np.ones((N_t, N_sc)) # no equalization necessary for beamforming.
-    
+
             # Derivation:
             # GY = G(HFx + n)
             # WGY = WGHFx + WGn
             # z = WSigma x + WGn
-            # z = x + v 
+            # z = x + v
             # x_hat = argmax p_v(z | x)
-            
+
             # W@H_est is ones or I (W@H_est).round(2) or (W@Sigma).round(2) for precoding
             z = _matrix_vector_multiplication(W, Y)
             v = _matrix_vector_multiplication(W, noise)
             q = _matrix_vector_multiplication(W, interference)
-            
+
             P_w_S_x_dBm = _dB(np.linalg.norm(W[0,:,:]@Sigma[0, :], ord='fro') ** 2) + P_X_dBm  # Ideally I should do across all subcarriers.
             P_v_dBm = _dB(np.linalg.norm(W[0, :, :]@Gcomb[0, :, :], ord='fro') ** 2) + _dB((P_noise + P_interference) * 1e3)
-            
+
             snr_rx_dB = P_w_S_x_dBm - P_v_dBm - noise_figure
             EbN0_rx_dB = snr_rx_dB - _dB(k_constellation * code_rate)
-            
+
             # Now conduct symbol detection to find x hat from z.
             X_hat_information, X_hat, [x_hat_b_i, x_hat_b_q] = detect_symbols(z, alphabet, algorithm=symbol_detection)
-    
+
             bits_receiver, codeword_receiver = bits_from_IQ(x_hat_b_i, x_hat_b_q)
-    
+
             # Remove the padding and CRC from here.
             crc_length = len(crc_transmitter)
             crc_pad_length = int(np.ceil(crc_length / k_constellation)) * \
                 k_constellation  # padding included.
-    
+
             codeword_receiver = codeword_receiver[:-crc_pad_length]
-    
+
             # Performance measures are here.
             crc_receiver = compute_crc(codeword_receiver, crc_generator)
-            
+
             # If CRC1 xor CRC2 is not zero, then error.
             if int(crc_transmitter, 2) ^ int(crc_receiver, 2) != 0:
                 block_error += 1
-    
+
             # For beamforming, the codeword is actually one symbol, and thus
             # bit error rate will be filled with NaN
             BER_i = np.nan
             if precoder != 'dft_beamforming':
                 BER_i = compute_bit_error_rate(codeword_transmitter[:-crc_pad_length], codeword_receiver)
             BER.append(BER_i)
-            
+
             to_append_i = [n_transmission, snr_dB, EbN0_dB, P_X_dBm, d, estimation_error, compression_loss,
                            PL_dB, P_Hx_dBm, snr_rx_dB_pre_eq, snr_rx_dB, EbN0_rx_dB, BER_i, block_error]
-            
+
             df_to_append_i = pd.DataFrame([to_append_i], columns=df_detailed.columns)
-    
+
             if df_detailed.shape[0] == 0:
                 df_detailed = df_to_append_i.copy()
             else:
                 df_detailed = pd.concat([df_detailed, df_to_append_i], ignore_index=True, axis=0)
             ###########################################################################
-    
+
         BER = np.mean(BER)
         BLER = block_error / max_transmissions
-    
+
         to_append = [snr_dB, EbN0_dB, P_X_dBm, d, estimation_error, compression_loss,
                        PL_dB, P_Hx_dBm, snr_rx_dB_pre_eq, snr_rx_dB, EbN0_rx_dB, BER, BLER]
         df_to_append = pd.DataFrame([to_append], columns=df.columns)
-    
+
         rounded = [f'{x:.3f}' for x in to_append]
         del to_append
-    
+
         if df.shape[0] == 0:
             df = df_to_append.copy()
         else:
             df = pd.concat([df, df_to_append], ignore_index=True, axis=0)
-    
+
         print(' | '.join(map(str, rounded)))
-        
+
     end_time = time.time()
-    
+
     print(f'Time elapsed: {((end_time - start_time) / 60.):.2f} mins.')
-    
+
     return df, df_detailed, v
-    
+
 
 df, df_detailed, v = run_simulation()
 
