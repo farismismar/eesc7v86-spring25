@@ -54,7 +54,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 N_t = 2                                  # Number of transmit antennas
 N_r = 2                                  # Number of receive antennas per user
 N_sc = 64                                # Number of subcarriers
-P_TX = 1                                 # Signal transmit power (bandwidth-normalized) [W]
+P_TX = 1                                 # Signal transmit power per antenna (bandwidth-normalized) [W]
 
 max_transmissions = 500
 precoder = 'SVD_Waterfilling'            # Also: identity, SVD, SVD_Waterfilling, dft_beamforming
@@ -2245,6 +2245,9 @@ def run_simulation():
             G_dB = _dB(G)
             Gchi_dB, _ = compute_shadow_fading(N_sc, G_dB, shadowing_std_dev)  # Add shadowing \chi_\sigma
             Gchi = _linear(Gchi_dB)
+            
+            # Note to self, introducing G_fading to the channel creates detection problems.
+            # H *= np.sqrt(Gchi)
             
             # Left-multiply y and noise with Gcomb
             Y = _matrix_vector_multiplication(Gcomb, Y)
