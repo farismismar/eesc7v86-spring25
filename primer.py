@@ -2166,6 +2166,12 @@ def equalize_rotation_channel_CNN(theta, SNR_dB, epochs=100, batch_size=64, trai
 
 
 def run_simulation():
+    global max_transmissions, constellation, M_constellation
+    global transmit_SNR_dB, P_TX, N_t
+    global N_sc, f_c, Df, noise_figure
+    global channel_type, shadowing_std_dev
+    global estimation, equalization, symbol_detection
+    
     start_time = time.time()
 
     # This is the power of the signal (across all subcarriers for one OFDM symbol)
