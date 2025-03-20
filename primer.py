@@ -75,7 +75,7 @@ MIMO_estimation = 'perfect'              # Also: perfect, LS, LMMSE (keep at per
 MIMO_equalization = 'MMSE'               # Also: MMSE, ZF
 symbol_detection = 'ML'                  # Also: ML, kmeans, DNN, ensemble
 
-crc_generator = 0b1000_0101              # CRC generator polynomial (n-bit)
+crc_generator = 0b1010_0101              # CRC generator polynomial (n-bit)
 channel_compression_ratio = 0            # Channel compression
 
 K_factor = 4                             # For Ricean
@@ -94,7 +94,7 @@ prefer_gpu = True
 seed = 42  # Reproduction
 np_random = np.random.RandomState(seed=seed)
 
-__ver__ = '0.73'
+__ver__ = '0.8'
 __data__ = '2025-03-19'
 
 
@@ -212,28 +212,33 @@ def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
 
     k = int(np.log2(alphabet.shape[0]))
 
-    payload_length = N_sc * N_t * k  # For the future, this depends on the MCS index.
+    max_codeword_length = N_sc * N_t * k  # For the future, this depends on the MCS index.
 
     crc_length = len(bin(crc_generator)[2:])  # in bits.
     crc_pad_length = int(np.ceil(crc_length / k)) * k  # padding included.
     
     # The padding length in symbols is
-    codeword_length = payload_length  # based on the MCS.
-    padding_length_syms = N_sc * N_s - int(np.ceil((codeword_length + crc_length) / k))
-    padding_length_bits = k * padding_length_syms
+    payload_length = max_codeword_length - crc_pad_length
+    padding_length_bits = max_codeword_length - payload_length
+    padding_length_syms = int(np.ceil(padding_length_bits / k))
 
     bits = create_bit_payload(payload_length)
 
     bits = bits[:-crc_pad_length]
     crc_transmitter = compute_crc(bits, crc_generator)
 
-    # Construct the payload frame.
-    payload = bits + '0' * padding_length_bits + crc_transmitter
+    # Construct the codeword (frame containing payload and CRC)
+    while True:
+        codeword = bits + '0' * (padding_length_bits - crc_length) + crc_transmitter
+        if (len(codeword) % (N_sc * N_t) == 0):
+            break
+        else:
+            padding_length_bits += 1
+            
     ###
+    assert(len(codeword) == max_codeword_length)
 
-    assert(len(payload) == payload_length)
-
-    x_b_i, x_b_q, x_information, x_symbols = bits_to_baseband(payload, alphabet)
+    x_b_i, x_b_q, x_information, x_symbols = bits_to_baseband(codeword, alphabet)
 
     x_information = np.reshape(x_information, (N_sc, N_t))
     x_symbols = np.reshape(x_symbols, (N_sc, N_t))
@@ -244,7 +249,7 @@ def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
     x_b_i = np.reshape(x_b_i, (-1, N_t))
     x_b_q = np.reshape(x_b_q, (-1, N_t))
 
-    return x_information, x_symbols, [x_b_i, x_b_q], payload_length, crc_transmitter
+    return x_information, x_symbols, [x_b_i, x_b_q], payload_length, crc_transmitter    
 
 
 def generate_interference(Y, p_interference, interference_power_dBm):
@@ -583,6 +588,9 @@ def create_channel(N_sc, N_r, N_t, channel='rayleigh'):
 
     if channel == 'rayleigh':
         return _create_ricean_channel(N_sc, N_r, N_t, K_factor=0)
+
+    if channel == 'CDL-A':
+        return _generate_cdl_a_channel(N_sc, N_r, N_t, carrier_frequency=f_c)
 
     if channel == 'CDL-C':
         return _generate_cdl_c_channel(N_sc, N_r, N_t, carrier_frequency=f_c)
