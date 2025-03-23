@@ -1364,7 +1364,7 @@ def compute_precoder_combiner(H, P_TX, algorithm='SVD_Waterfilling'):
 
 def _dft_codebook(N_t, k_oversample=1):
     global f_c
-
+    
     wavelength = speed_of_light / f_c
 
     d = wavelength / 2.  # antenna spacing
@@ -1380,7 +1380,7 @@ def _dft_codebook(N_t, k_oversample=1):
     for i, theta_i in enumerate(theta):
         exponent = 1j * k * d * np.cos(theta_i) * np.arange(N_t)
         f_i = 1. / np.sqrt(N_t) * np.exp(exponent)
-        F[i, :] = f_i
+        F[:, i] = f_i.T
 
     return F
 
