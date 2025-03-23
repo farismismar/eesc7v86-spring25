@@ -230,7 +230,7 @@ def generate_transmit_symbols(N_sc, N_t, alphabet, P_TX):
     # Construct the codeword (frame containing payload and CRC)
     while True:
         codeword = bits + '0' * (padding_length_bits - crc_length) + crc_transmitter
-        if (len(codeword) % (N_sc * N_t) == 0):
+        if (len(codeword) % N_sc == 0) and (len(codeword) % N_t == 0):
             break
         else:
             padding_length_bits += 1
