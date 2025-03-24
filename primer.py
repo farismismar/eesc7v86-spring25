@@ -95,7 +95,7 @@ seed = 42  # Reproduction
 np_random = np.random.RandomState(seed=seed)
 
 __ver__ = '0.8'
-__data__ = '2025-03-19'
+__data__ = '2025-03-23'
 
 
 def create_bit_payload(payload_size):
@@ -2094,18 +2094,20 @@ def rotation_channel(X, theta=0, SNR_dB=30, noise='shot'):
     noise_power = 1. / SNR
 
     if noise == 'shot':
-        lam = 1e9  # Electrons arrival rate = I Delta t / q
-        noise_dc = np_random.poisson(lam=lam, size=num_samples)
-        noise_ac = np.sqrt(noise_power / 2) * (np_random.normal(loc=0, scale=1, size=num_samples) + \
-                                               1j * np_random.normal(loc=0, scale=1, size=num_samples))
+        lam = 1e-3  # Electrons arrival rate = I Delta t / q (t in femtoseconds)
+        noise_dc = random_state.poisson(lam=lam, size=num_samples)
+        noise_ac = np.sqrt(noise_power / 2) * (random_state.normal(loc=0, scale=1, size=num_samples) + \
+                                               1j * random_state.normal(loc=0, scale=1, size=num_samples))
         noise = noise_ac + noise_dc
-
-        noise_real = np.real(noise)
-        noise_imag = np.imag(noise)
+        
+        noise_real = real + np.real(noise)
+        noise_imag = imag + np.imag(noise)
     else:
-        # Assume Gaussian
-        noise_real = real + np_random.normal(0, np.sqrt(noise_power / 2.), num_samples)
-        noise_imag = imag + np_random.normal(0, np.sqrt(noise_power / 2.), num_samples)
+        if noise not in ['gaussian', 'johnson']:
+            print("WARNING: Assuming Gaussian noise.")
+            
+        noise_real = real + random_state.normal(0, np.sqrt(noise_power / 2.), num_samples)
+        noise_imag = imag + random_state.normal(0, np.sqrt(noise_power / 2.), num_samples)
 
     return np.c_[noise_real, noise_imag], np.c_[np.real(X), np.imag(X)]
 
